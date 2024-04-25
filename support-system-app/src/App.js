@@ -37,7 +37,7 @@ function App() {
       Authorization: `Bearer ${sessionStorage.getItem("token")}`
     }
   }
-
+  console.log(config);
   const showAlert = (theMessage, theType) => {
     setAlertType((alertType) => theType);
     setAlert((alert) => theMessage);
@@ -68,7 +68,7 @@ function App() {
     }
 
     setFeed((feed) => []);
-    axios.get("http://localhost:8080/api/messages/get-messages/" + whichTicket, config).then(
+    axios.get("http://localhost:8080/get-messages/" + whichTicket, config).then(
       (res) => {
 
         for (let i = 0; i < res.data.length; i++) {
@@ -84,7 +84,7 @@ function App() {
 
   const getTickets = (email) => {
     //START CLIENT SIDE GET USER TICKETS
-    axios.get("http://localhost:8080/api/tickets/get-ticket-info/" + email, config).then(
+    axios.get("http://localhost:8080/get-ticket-info/" + email, config).then(
       (res) => {
         if (res.data === null || res.data.length === 0) {
           showAlert("No data yet", "info");

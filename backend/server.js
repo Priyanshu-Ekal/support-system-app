@@ -20,15 +20,10 @@ var randomize = function (base) {
 
     return returnValue;
 };
-/*
-* Creates a unique user id
-* @method uuid
-* @return {String} uuid A unique string in a uuid format
-*/
+
 var uuid = function uuid() {
     return randomize('xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx');
 };
-
 
 const app = express();
 app.use(cors());
@@ -52,12 +47,7 @@ const create = (data, callback) => {
 
 app.post("/newUser", (req, res) => {
     const body = req.body;
-
     console.log("JSON.stringify(req.body): " + JSON.stringify(req.body));
-
-
-    // const salt = genSaltSync(10);
-    // body.password = hashSync(body.password, salt);
     create(body, (err, results) => {
         if (err) {
             return res.status(500).json({
@@ -124,51 +114,25 @@ app.post("/login", (req, res) => {
                 data: "Login successful"
             })
         }
-        // bcrypt.compare(password, results.password, (bcryptErr, result) => {
-        //     if (bcryptErr) {
-        //         console.error(bcryptErr);
-        //         return res.status(500).json({
-        //             success: 0,
-        //             data: "Error comparing passwords"
-        //         });
-        //     }
-            
-        //     if (result) {
-        //     console.log(result);
-        //     console.log(results);
-        //     results.password = password;
-            const jsontoken = sign(
-                {
-                    results: result
-                },
-                jwtKey,
-                {
-                    expiresIn: "1h",
-                }
-            );
-
-            if (jsontoken) {
-                saveToken(jsontoken, body.email);
-                console.log("trying to fire saved token.");
+        const jsontoken = sign(
+            {
+                results: result
+            },
+            jwtKey,
+            {
+                expiresIn: "1h",
             }
-
-            return res.json({
-                success: 1,
-                message: "Login Successful",
-                token: jsontoken,
-                id: results.id,
-            })
-        // }
-
-        // else {
-        //         // Passwords do not match
-        //         console.log("Password: "+password);
-        //         return res.json({
-        //             success: 0,
-        //             data: "Invalid password"
-        //         });
-        //     }
-        // });
+        );
+        if (jsontoken) {
+            saveToken(jsontoken, body.email);
+            console.log("trying to fire saved token.");
+        }
+        return res.json({
+            success: 1,
+            message: "Login Successful",
+            token: jsontoken,
+            id: results.id,
+        })
     });
 });
 
@@ -241,21 +205,22 @@ app.get("/check-token/:email", checkToken, (req, res) => {
 
 //START CHANGE PASSWORD
 
-// app.put("/change-password", checkToken, (req, res) => {
-//     const body = req.body;
-//     const salt = genSaltSync(10);
-//     body.password = hashSync(body.password, salt);
-//     let sql = `UPDATE user SET password = '${body.password}' WHERE email = '${body.email}'`;
-//     let query = db.query(sql, (err, result) => {
-//         if (err) {
-//             console.log(err);
-//         } else {
-//             console.log(result);
-//             res.send(result);
-//         }
-//     })
+app.put("/change-password", checkToken, (req, res) => {
+    const body = req.body;
+    const salt = genSaltSync(10);
+    body.password = hashSync(body.password, salt);
+    let sql = `UPDATE user SET password = '${body.password}' WHERE email = '${body.email}'`;
+    let query = db.query(sql, (err, result) => {
+        if (err) {
+            console.log(err);
+        } else {
+            console.log(result);
+            res.send(result);
+        }
+    })
 
-// });
+});
+
 //USER EDIT THEME START
 
 // app.put("/edit-theme", checkToken, (req, res) => {
@@ -286,9 +251,264 @@ app.get("/check-token/:email", checkToken, (req, res) => {
 
 //END GET THEME
 
+//SERVER SIDE POST NEW TICKET
+app.post("/add-ticket/", checkToken, (req, res) => {
+    let sql = `INSERT INTO tickets SET ?`;
+    let query = db.query(sql, {
+        ticketId: req.body.ticketId,
+        ticketInfo: req.body.ticketInfo,
+        priority: req.body.priority,
+        bugNewFeature: req.body.bugNewFeature,
+        assignedTo: req.body.assignedTo,
+        uuid: req.body.uuid
+    }, (err, result) => {
+        if (err) {
+            console.log("error: " + err);
+        } else {
+            res.send(result);
+        }
+    });
+});
+
+
+
+//SERVER SIDE GET ALL USER TICKET INFO
+app.get("/grab-ticket/:uuid", checkToken, (req, res) => {
+    console.log("req.params.ticketId: " + req.params.uuid);
+    let sql = `SELECT * FROM tickets WHERE uuid = '${req.params.uuid}'`;
+    let query = db.query(sql, (err, result) => {
+        if (err) {
+            console.log("error: " + err);
+        } else {
+            res.send(result);
+        }
+    });
+});
+
+
+//SERVER SIDE GET ALL USER TICKET INFO
+app.get("/get-ticket-info/:email", checkToken, (req, res) => {
+    let emailWithColons = ":" + req.params.email + ":";
+    console.log("emailWithColons: " + emailWithColons);
+    let sql = `SELECT * FROM tickets WHERE ticketId LIKE '%${emailWithColons}%'`;
+    let query = db.query(sql, (err, result) => {
+        if (err) {
+            console.log("error: " + err);
+        } else {
+            res.send(result);
+        }
+    });
+});
+
+
+//SERVER SIDE PUT TICKET INFO
+app.put("/update-ticket/", checkToken, (req, res) => {
+
+    let sql = ` UPDATE workflowTaskmanager.tickets tickets
+LEFT JOIN  workflowTaskmanager.messages 
+ON tickets.ticketId = workflowTaskmanager.messages.ticketId     
+LEFT JOIN   workflowTaskmanager.workflow 
+ON workflowTaskmanager.messages.ticketId = workflowTaskmanager.workflow.ticketId   
+SET 
+tickets.ticketInfo = '${req.body.ticketInfo}', 
+tickets.priority = '${req.body.priority}',
+tickets.bugNewFeature = '${req.body.bugNewFeature}', 
+tickets.assignedTo = '${req.body.assignedTo}', 
+tickets.ticketId = '${req.body.ticketId}',
+workflowTaskmanager.messages.ticketId = tickets.ticketId,
+workflowTaskmanager.workflow.ticketId = tickets.ticketId
+WHERE tickets.ticketId = '${req.body.originalTitle}'`;
+
+
+    let query = db.query(sql, (err, result) => {
+        if (err) {
+            console.log("error: " + err);
+        } else {
+            res.send(result);
+        }
+    });
+});
+//begin edit
+//workflowTaskmanager.invoices.ticketId = '${req.body.ticketId}'
+
+//SERVER SIDE DELETE TICKET
+app.delete("/delete-ticket/:uuid", checkToken, (req, res) => {
+    let sql = `DELETE FROM tickets WHERE uuid = '${req.params.uuid}'`;
+    let query = db.query(sql, (err, result) => {
+        if (err) {
+            console.log("error: " + err);
+        } else {
+            res.send(result);
+        }
+    });
+});
+
+
+//SERVER SIDE EMPLOYEE ROUTES
+app.put("/add-hours", checkToken, (req, res) => {
+
+    let sql = `UPDATE tickets SET hours = '${req.body.hours}' WHERE uuid = '${req.body.uuid}'`;
+    let query = db.query(sql, (err, result) => {
+        if (err) {
+            console.log("error: " + err);
+        } else {
+            res.send(result);
+        }
+    })
+});
+
+//SERVER SIDE GET MESSAGES REGARDING SPECIFIC TICKET
+app.get("/get-messages/:uuid", checkToken, (req, res) => {
+    let sql = `SELECT * FROM messages WHERE uuid = '${req.params.uuid}'`;
+    let query = db.query(sql, (err, result) => {
+        if (err) {
+            console.log(err);
+        } else {
+            res.send(result);
+        }
+    });
+});
+
+
+//SERVER SIDE POST NEW MESSAGE
+app.post("/post-message", checkToken, (req, res) => {
+    let sql = `INSERT INTO messages SET ?`;
+    let query = db.query(sql,
+
+        {
+            ticketId: req.body.ticketId,
+            title: req.body.title,
+            message: req.body.message,
+            uuid: req.body.uuid
+        },
+
+        (err, result) => {
+            if (err) {
+                console.log(err);
+            } else {
+                res.send(result);
+            }
+        });
+});
+
+
+//SERVER SIDE DELETE MESSAGE
+app.delete("/delete-message/:title", checkToken, (req, res) => {
+    console.log("req.params.title: " + req.params.title);
+    let sql = `DELETE FROM messages WHERE title = '${encodeURIComponent(req.params.title).replace(/[!'()*]/g, escape)}'`;
+    let query = db.query(sql, (err, result) => {
+        if (err) {
+            console.log(err);
+        } else {
+            res.send(result);
+        }
+    });
+});
+
+
+//SERVER SIDE PUT / EDIT MESSAGE
+app.put("/edit-message", checkToken, (req, res) => {
+    let sql = `UPDATE messages SET message = '${req.body.message}' WHERE title = '${req.body.title}'`;
+    let query = db.query(sql, (err, result) => {
+        if (err) {
+            console.log(err);
+        } else {
+            res.send(result);
+        }
+    })
+})
+
+//SERVER SIDE POST NEW STEP
+app.post("/add-workflow/", checkToken, (req, res) => {
+    let sql = `INSERT INTO workflow SET ?`;
+    let query = db.query(sql, {
+        ticketId: req.body.ticketId,
+        stepsData: req.body.stepsData,
+        uuid: req.body.uuid
+    }, (err, result) => {
+        if (err) {
+            console.log("error: " + err);
+        } else {
+            res.send(result);
+        }
+    });
+});
+
+//SERVER SIDE GET ALL STEPS
+app.get("/get-workflow/:uuid", checkToken, (req, res) => {
+
+    let sql = `SELECT * FROM workflow WHERE uuid = '${req.params.uuid}'`;
+    let query = db.query(sql, (err, result) => {
+        if (err) {
+            console.log("error: " + err);
+        } else {
+            res.send(result);
+        }
+    });
+});
+
+
+//SERVER SIDE PUT WORKFLOW STEPS
+app.put("/update-workflow/", checkToken, (req, res) => {
+    let sql = `UPDATE workflow SET stepsData = '${req.body.stepsData}' WHERE uuid = '${req.body.uuid}'`;
+    let query = db.query(sql, (err, result) => {
+        if (err) {
+            console.log("error: " + err);
+        } else {
+            res.send(result);
+        }
+    });
+});
+
+//SERVER SIDE POST NEW INVOICE
+app.post("/add-invoice", checkToken, (req, res) => {
+    let sql = `INSERT INTO invoices SET ?`;
+    let query = db.query(sql, {
+        invoiceId: req.body.invoiceId,
+        itemizedList: req.body.itemizedList,
+        preTaxTotal: req.body.preTaxTotal,
+        invoiceRecipient: req.body.invoiceRecipient,
+        invoiceDueDate: req.body.invoiceDueDate,
+        ticketId: req.body.ticketId,
+        uuid: req.body.uuid
+
+    }, (err, result) => {
+        if (err) {
+            console.log("Error: " + err);
+        } else {
+            res.send(result);
+        }
+    });
+});
+
+//SERVER SIDE GET ALL INVOICES BY ticketId//
+app.get("/get-invoices/:uuid", checkToken, (req, res) => {
+
+    let sql = `SELECT * FROM invoices WHERE uuid = '${req.params.uuid}'`;
+    //'${encodeURIComponent(req.params.title).replace(/[!'()*]/g, escape)}'`;
+    let query = db.query(sql, (err, result) => {
+        if (err) {
+            console.log("Error :" + err);
+        } else {
+            res.send(result);
+        }
+    })
+});
+
+//SERVER SIDE UPDATE INVOICE NAME
+app.put("/update-invoices-ticketId/", checkToken, (req, res) => {
+    let sql = `UPDATE invoices SET ticketId = '${req.body.ticketId}' WHERE ticketId = '${req.body.originalId}'`
+    let query = db.query(sql, (err, result) => {
+        if (err) {
+            console.log("Error :" + err);
+        } else {
+            res.send(result);
+        }
+    })
+});
+
 if (process.env.NODE_ENV === "production") {
     app.use(express.static("client/build"));
-
     app.get("*", (req, res) => {
         res.sendFile(path.resolve(__dirname, "client", "build", "index.html"));
 

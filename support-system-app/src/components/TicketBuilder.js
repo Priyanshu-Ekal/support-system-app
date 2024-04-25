@@ -124,7 +124,7 @@ const TicketBuilder = (props) => {
                 uuid: tempUUID
 
             }
-            axios.post("http://localhost:8080/api/tickets/add-ticket/", tkObj, props.config).then(
+            axios.post("http://localhost:8080/add-ticket/", tkObj, props.config).then(
                 (res) => {
 
                     if (res.data.affectedRows >= 1) {
@@ -285,27 +285,22 @@ const TicketBuilder = (props) => {
 
 
     useEffect(() => {
-
-        if (props.ticketInfo === null) {
-            props.getTickets(props.userEmail);
-        }
-        if (loaded === false && props.ticketInfo) {
-
-
-
+        if (!loaded && props.ticketInfo !== null) {
+            // Assuming ticketInfo is fetched asynchronously and stored in props.ticketInfo
             setTimeout(() => {
                 if (sessionStorage.getItem("uuid")) {
                     document.querySelector("select[name='ticketList'] option[value='" + sessionStorage.getItem("uuid") + "']").selected = true;
-                    setUuid((uuid) => sessionStorage.getItem("uuid"))
+                    setUuid(sessionStorage.getItem("uuid"));
                     populateFields();
                 } else {
                     props.showAlert("I am not sure which ticket you are on.", "warning");
                     props.getMessages("reset");
                 }
             }, 500);
-            setLoaded((loaded) => true);
+            setLoaded(true);
         }
-    }, []);
+        
+    }, [loaded, props.ticketInfo]);
 
 
 
@@ -313,9 +308,9 @@ const TicketBuilder = (props) => {
 
     return (<div className="bg-gray-600 text-white">
 
-        <div className={props.ticketInfo !== null && func !== "add" ? "col-md-6" : "hide"}>
+        {/* <div className={props.ticketInfo !== null && func !== "add" ? "col-md-6" : "hide"}> */}
             <TicketList ticketInfo={props.ticketInfo} populateFields={populateFields} />
-        </div>
+        {/* </div> */}
 
         {props.ticketInfo !== null && func !== "add" ?
             <div className="col-md-6">
